@@ -1,7 +1,7 @@
 PRACTICE TOOL for Bloodborne (bbport 1.9.5)
 by billymoore
 
-Savestates, practice options and teleport points, in a small menu inside the game.
+Savestates, cheats and teleport points, in a small menu inside the game.
 
 
 INSTALL

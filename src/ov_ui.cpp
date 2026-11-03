@@ -447,7 +447,7 @@ static void draw_frame(float W, float H) {
     }
     if (ImGui::IsItemDeactivated()) { ini_puti("overlay", "pos_x", (int)S.offx); ini_puti("overlay", "pos_y", (int)S.offy); }
     /* tabs */
-    static const char *tabs[] = {"SAVESTATES", "PRACTICE", "TELEPORT", "SETTINGS"};
+    static const char *tabs[] = {"SAVESTATES", "CHEATS", "TELEPORT", "SETTINGS"};
     float tx = 40, ty = 74, th = 14 + lh(F_FELL, 14) / g_s + 12;
     hline(P(40, 0).x, P(1080, 0).x, P(0, ty + th).y, hair(0.18f));
     for (int i = 0; i < 4; ++i) {

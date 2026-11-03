@@ -20,7 +20,7 @@ A practice tool with real savestates for the PC port of Bloodborne, [bbport](htt
 - **Savestates of the whole world** in 10 slots: enemies, bosses, items and your hunter come back exactly as they were.
 - **They keep working** after you die, after you restart the game and even after you restart your PC.
 - **A menu inside the game** (press Home), made to look like Bloodborne.
-- **Practice options:** immortal, endless stamina, endless consumables, stealth, silent steps, set Blood Echoes and Insight, refill Blood Vials and Quicksilver Bullets.
+- **Cheats:** immortal, endless stamina, endless consumables, stealth, silent steps, set Blood Echoes and Insight, refill Blood Vials and Quicksilver Bullets.
 - **Teleport** to positions you saved.
 - **Your own hotkeys** for every action.
 
