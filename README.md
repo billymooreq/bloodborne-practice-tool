@@ -59,6 +59,7 @@ Open `bin\practice-tool\practice-tool.ini`, find the `[options]` section and add
 ## Known issues
 
 - **The Hunter's Dream is completely black.** This can happen if you loaded a state and then travelled to the Hunter's Dream later. Fix: quit to the main menu and choose **Continue**. If it is still black, restart the game.
+- **The character's face turns pink or blood-red** 
 
 ## Credits
 
