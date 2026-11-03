@@ -8,6 +8,7 @@ int core_slot_state(int slot);              /* 0 empty, 1 saved, 2 saved and com
 int core_slot_damaged(int slot);
 void core_slot_dir(int slot, char *out, size_t n);
 int core_active(void);
+const char *core_load_note(void);   /* "" or a warning appended to the "Slot N loaded" event */
 void core_set_active(int slot);             /* remembered in bbstate.ini, slot sound */
 void core_get_options(BbsOptions *o);
 void core_set_options(const BbsOptions *o); /* applied and written to bbstate.ini */

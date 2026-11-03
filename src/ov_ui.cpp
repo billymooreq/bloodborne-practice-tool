@@ -25,7 +25,7 @@ extern "C" {
 #pragma comment(lib, "shell32.lib")
 
 /* ---- one place for the version and the links (About tab) ---- */
-#define OV_VERSION "0.1.2"
+#define OV_VERSION "0.2.0"
 static const char *const k_link_url[3] = {"https://github.com/billymooreq", "https://www.speedrun.com/users/billymoore", "https://www.twitch.tv/biilymoore"};
 static const char *const k_link_label[3] = {"GITHUB", "SPEEDRUN.COM", "TWITCH"};
 
@@ -44,7 +44,7 @@ static const char *const k_key_label[K_COUNT] = {"Open / close menu", "Save stat
 static const char *const k_key_ini[K_COUNT] = {"toggle", "", "", "", "", "save_position", "load_position", "immortal", "stamina", "consumables", "stealth", "silent"};
 static const char *const k_key_def[K_COUNT] = {"Home", "", "", "", "", "none", "none", "none", "none", "none", "none", "none"};
 static HotKey g_keys[K_COUNT];
-static char g_ini[MAX_PATH], g_dir[MAX_PATH], g_why[256], g_points_ini[MAX_PATH];
+static char g_ini[MAX_PATH], g_dir[MAX_PATH], g_why[400], g_note[160], g_points_ini[MAX_PATH];
 static int g_supported;
 static struct { int notify, pause, opacity, size; float offx, offy; } S = {1, 1, 85, 100, 0, 0};   /* offx/offy: panel offset from the centre, in 900p units */
 static const float PH = 730, CT = 144, CB = 706;   /* panel height, content top and bottom (mockup units) */
@@ -429,6 +429,7 @@ static void draw_frame(float W, float H) {
     else if (V.st.state == BBS_SAVING) _snprintf_s(st, sizeof st, _TRUNCATE, "Saving\xe2\x80\xa6");
     else if (V.st.state == BBS_LOADING) _snprintf_s(st, sizeof st, _TRUNCATE, "Loading\xe2\x80\xa6");
     else if (g_msg[0] && age < 5) { AcquireSRWLockShared(&g_lock); strncpy_s(st, sizeof st, g_msg, _TRUNCATE); ReleaseSRWLockShared(&g_lock); dot = g_msg_err ? C_ERR : IM_COL32(0xa9, 0xc4, 0xde, 255); }
+    else if (g_note[0]) { strncpy_s(st, sizeof st, g_note, _TRUNCATE); dot = C_GOLD; }   /* a bbport version not tested with the tool */
     if (st[0]) {
         float sw = text_w(F_CG, 15, st, 0) / g_s, sx = 1080 - aw - 30 - sw;
         if (sx < 330) sx = 330;
@@ -1206,6 +1207,7 @@ static DWORD WINAPI ov_thread(LPVOID) {
 void ov_start(const OvConfig *c) {
     g_supported = c->supported;
     strncpy_s(g_why, sizeof g_why, c->why ? c->why : "", _TRUNCATE);
+    strncpy_s(g_note, sizeof g_note, c->note ? c->note : "", _TRUNCATE);
     strncpy_s(g_dir, sizeof g_dir, c->dir, _TRUNCATE);
     strncpy_s(g_ini, sizeof g_ini, c->ini, _TRUNCATE);
     _snprintf_s(g_points_ini, sizeof g_points_ini, _TRUNCATE, "%s\\teleport.ini", g_dir);

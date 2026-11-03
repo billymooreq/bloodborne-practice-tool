@@ -4,7 +4,7 @@ rem   dist\pdh.dll, dist\practice-tool\licenses\, dist\README.txt
 rem "build.bat zip" also makes dist\BloodbornePracticeTool-v%VERSION%.zip (the release asset).
 rem Needs Visual Studio 2022 or its Build Tools with "Desktop development with C++" (MSVC x64 + MASM).
 setlocal
-set VERSION=0.1.2
+set VERSION=0.2.0
 cd /d "%~dp0"
 set BBS_OUT=pdh.dll
 call "%~dp0src\build.bat" || exit /b 1

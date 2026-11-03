@@ -27,8 +27,8 @@ if not exist obj\ig\imgui_impl_vulkan.obj (
   cl /nologo /c /O2 /MT /DNDEBUG /W1 /EHsc /std:c++17 /DVK_NO_PROTOTYPES /DIMGUI_IMPL_VULKAN_NO_PROTOTYPES /DIMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS /I%IG% /I%TP%\vulkan /Foobj\ig\ %IG%\imgui.cpp %IG%\imgui_draw.cpp %IG%\imgui_tables.cpp %IG%\imgui_widgets.cpp %IG%\backends\imgui_impl_vulkan.cpp || exit /b 1
 )
 cl /nologo /c /O2 /MT /DNDEBUG /W3 /EHsc /std:c++17 /DVK_NO_PROTOTYPES /DIMGUI_IMPL_VULKAN_NO_PROTOTYPES /DIMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS /I%IG% /I%TP%\vulkan /Foobj\ ov_vk.cpp ov_ui.cpp || exit /b 1
-cl /nologo /c /O2 /MT /DNDEBUG /W3 %BBS_CFLAGS% /Foobj\ bbstate.c store.c vsync.c api.c meta.c keys.c practice.c proxy.c sha256.c || exit /b 1
-link /nologo /DLL /OUT:%BBS_OUT% /DEF:proxy_pdh.def /MAP:obj\bbstate.map obj\bbstate.obj obj\store.obj obj\vsync.obj obj\api.obj obj\meta.obj obj\keys.obj obj\practice.obj obj\proxy.obj obj\sha256.obj ^
+cl /nologo /c /O2 /MT /DNDEBUG /W3 %BBS_CFLAGS% /Foobj\ bbstate.c store.c vsync.c api.c meta.c keys.c practice.c proxy.c sha256.c rva.c || exit /b 1
+link /nologo /DLL /OUT:%BBS_OUT% /DEF:proxy_pdh.def /MAP:obj\bbstate.map obj\bbstate.obj obj\store.obj obj\vsync.obj obj\api.obj obj\meta.obj obj\keys.obj obj\practice.obj obj\proxy.obj obj\sha256.obj obj\rva.obj ^
   obj\ov_vk.obj obj\ov_ui.obj obj\ig\imgui.obj obj\ig\imgui_draw.obj obj\ig\imgui_tables.obj obj\ig\imgui_widgets.obj obj\ig\imgui_impl_vulkan.obj ^
   obj\thunks.obj obj\proxy_pdh.obj obj\overlay.res ^
   delayimp.lib /DELAYLOAD:d3d11.dll /DELAYLOAD:dxgi.dll /DELAYLOAD:winmm.dll /DELAYLOAD:shell32.dll user32.lib shell32.lib winmm.lib || exit /b 1

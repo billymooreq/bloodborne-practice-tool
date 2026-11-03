@@ -63,7 +63,10 @@ static HMODULE g_self;
 static uint8_t *g_base;          /* bb-probe.exe */
 static char g_dir[MAX_PATH];     /* data folder: <game>\practice-tool (pdh.dll proxy or when it exists), BBSTATE_DIR, else the DLL folder */
 static int g_proxy;              /* loaded as pdh.dll next to bb-probe.exe */
-static int g_supported;          /* bb-probe.exe is bbport 1.9.5 (sha256 checked in DllMain) */
+static int g_supported;          /* every rva.h symbol was found in bb-probe.exe (any bbport version) */
+static int g_untested;           /* bb-probe.exe is not a bbport version the tool was tested with: the overlay says so */
+static char g_rva_missing[200];
+int rva_resolve(const char *exe, void (*log)(const char *fmt, ...), char *missing, size_t mlen);
 static char g_exe_sha[65];
 static HANDLE g_log = INVALID_HANDLE_VALUE;
 static CRITICAL_SECTION g_log_cs;
@@ -76,7 +79,7 @@ uint64_t bbs_orig[3];
 extern void bbs_hook0(void), bbs_hook1(void), bbs_hook2(void);
 static void (*const k_hooks[3])(void) = {bbs_hook0, bbs_hook1, bbs_hook2};
 static const uint64_t k_slots[3] = {SLOT_SUBMITDONE, SLOT_SUBMITANDFLIP, SLOT_VIDEOOUTSUBMITFLIP};
-static const uint64_t k_fn_rva[3] = {RVA_FN_SUBMITDONE, RVA_FN_SUBMITANDFLIP, RVA_FN_VIDEOOUTSUBMITFLIP};
+static const uint64_t *const k_fn_rva[3] = {&RVA_FN_SUBMITDONE, &RVA_FN_SUBMITANDFLIP, &RVA_FN_VIDEOOUTSUBMITFLIP};
 static const char *const k_names[3] = {"sceGnmSubmitDone", "sceGnmSubmitAndFlipCommandBuffers", "sceVideoOutSubmitFlip"};
 static int g_hooked;
 
@@ -268,7 +271,7 @@ static int exe_hash_ok(void) {
     BCryptDestroyHash(hh); BCryptCloseAlgorithmProvider(alg, 0); CloseHandle(f);
     for (int i = 0; i < 32; ++i) sprintf_s(g_exe_sha + 2 * i, 3, "%02x", digest[i]);
     blog("exe %s sha256 %s", path, g_exe_sha);
-    return !strcmp(g_exe_sha, BBPROBE_195_SHA256);
+    return 1;
 }
 
 /* ---- early mode (launch.py): loaded by an APC before the exe's entry point ----
@@ -657,23 +660,23 @@ int32_t keep_posix_tattr_destroy_c(uint64_t *a) { return posix_code(keep_tattr_d
 extern void track_init0(void), track_init1(void), track_init2(void), track_init3(void), track_init4(void), track_init5(void);
 extern void track_destroy0(void), track_destroy1(void), track_destroy2(void), track_destroy3(void), track_destroy4(void), track_destroy5(void);
 extern void keep_rw_destroy(void), keep_sem_delete(void), keep_tattr_destroy(void), keep_posix_tattr_destroy(void);
-static const struct { uint64_t rva; void (*fn)(void); const char *name; uint64_t *orig; } k_keep[] = {
-    {RVA_KEEP_MUTEX_DESTROY, track_destroy0, "mutex_destroy", &keep_dorig[0]},
-    {RVA_KEEP_POSIX_MUTEX_DESTROY, track_destroy1, "posix_mutex_destroy", &keep_dorig[1]},
-    {RVA_KEEP_COND_DESTROY, track_destroy2, "cond_destroy", &keep_dorig[2]},
-    {RVA_KEEP_POSIX_COND_DESTROY, track_destroy3, "posix_cond_destroy", &keep_dorig[3]},
-    {RVA_KEEP_MATTR_DESTROY, track_destroy4, "mutexattr_destroy", &keep_dorig[4]},
-    {RVA_KEEP_POSIX_MATTR_DESTROY, track_destroy5, "posix_mutexattr_destroy", &keep_dorig[5]},
-    {RVA_INIT_MUTEX, track_init0, "mutex_init", &keep_iorig[0]},
-    {RVA_INIT_POSIX_MUTEX, track_init1, "posix_mutex_init", &keep_iorig[1]},
-    {RVA_INIT_COND, track_init2, "cond_init", &keep_iorig[2]},
-    {RVA_INIT_POSIX_COND, track_init3, "posix_cond_init", &keep_iorig[3]},
-    {RVA_INIT_MATTR, track_init4, "mutexattr_init", &keep_iorig[4]},
-    {RVA_INIT_POSIX_MATTR, track_init5, "posix_mutexattr_init", &keep_iorig[5]},
-    {RVA_KEEP_RW_DESTROY, keep_rw_destroy, "rwlock_destroy", NULL},
-    {RVA_KEEP_SEM_DELETE, keep_sem_delete, "sema_delete", NULL},
-    {RVA_KEEP_TATTR_DESTROY, keep_tattr_destroy, "thread_attr_destroy", NULL},
-    {RVA_KEEP_POSIX_TATTR_DESTROY, keep_posix_tattr_destroy, "posix_thread_attr_destroy", NULL},
+static const struct { const uint64_t *rva; void (*fn)(void); const char *name; uint64_t *orig; } k_keep[] = {
+    {&RVA_KEEP_MUTEX_DESTROY, track_destroy0, "mutex_destroy", &keep_dorig[0]},
+    {&RVA_KEEP_POSIX_MUTEX_DESTROY, track_destroy1, "posix_mutex_destroy", &keep_dorig[1]},
+    {&RVA_KEEP_COND_DESTROY, track_destroy2, "cond_destroy", &keep_dorig[2]},
+    {&RVA_KEEP_POSIX_COND_DESTROY, track_destroy3, "posix_cond_destroy", &keep_dorig[3]},
+    {&RVA_KEEP_MATTR_DESTROY, track_destroy4, "mutexattr_destroy", &keep_dorig[4]},
+    {&RVA_KEEP_POSIX_MATTR_DESTROY, track_destroy5, "posix_mutexattr_destroy", &keep_dorig[5]},
+    {&RVA_INIT_MUTEX, track_init0, "mutex_init", &keep_iorig[0]},
+    {&RVA_INIT_POSIX_MUTEX, track_init1, "posix_mutex_init", &keep_iorig[1]},
+    {&RVA_INIT_COND, track_init2, "cond_init", &keep_iorig[2]},
+    {&RVA_INIT_POSIX_COND, track_init3, "posix_cond_init", &keep_iorig[3]},
+    {&RVA_INIT_MATTR, track_init4, "mutexattr_init", &keep_iorig[4]},
+    {&RVA_INIT_POSIX_MATTR, track_init5, "posix_mutexattr_init", &keep_iorig[5]},
+    {&RVA_KEEP_RW_DESTROY, keep_rw_destroy, "rwlock_destroy", NULL},
+    {&RVA_KEEP_SEM_DELETE, keep_sem_delete, "sema_delete", NULL},
+    {&RVA_KEEP_TATTR_DESTROY, keep_tattr_destroy, "thread_attr_destroy", NULL},
+    {&RVA_KEEP_POSIX_TATTR_DESTROY, keep_posix_tattr_destroy, "posix_thread_attr_destroy", NULL},
 };
 /* ---- gate: the only addresses of this DLL that guest memory ever holds ----
  * Import slots get an entry of this page (jmp [rip] to the DLL function) instead of the function: the
@@ -719,7 +722,7 @@ static void install_keep(int on) {
     if (!g_tab) g_tab = (Ent *)VirtualAlloc(NULL, sizeof(Ent) * TAB_SIZE, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (!g_keptlist) g_keptlist = (Kept *)VirtualAlloc(NULL, sizeof(Kept) * KEPT_CAP, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (!g_tab || !g_keptlist) { blog("keep: no table, not installed"); return; }
-    for (int k = 0; k < (int)(sizeof k_keep / sizeof *k_keep); ++k) if (k_keep[k].orig) *k_keep[k].orig = (uint64_t)g_base + k_keep[k].rva;
+    for (int k = 0; k < (int)(sizeof k_keep / sizeof *k_keep); ++k) if (k_keep[k].orig) *k_keep[k].orig = (uint64_t)g_base + *k_keep[k].rva;
     for (uint64_t a = 0x800000000ull, end = low_next(); a < end;) {
         MEMORY_BASIC_INFORMATION mbi;
         if (!VirtualQuery((void *)a, &mbi, sizeof mbi)) break;
@@ -727,7 +730,7 @@ static void install_keep(int on) {
             uint64_t *p = (uint64_t *)mbi.BaseAddress, *e = (uint64_t *)((uint8_t *)mbi.BaseAddress + mbi.RegionSize);
             for (; p < e; ++p)
                 for (int k = 0; k < (int)(sizeof k_keep / sizeof *k_keep); ++k)
-                    if (*p == (uint64_t)g_base + k_keep[k].rva && g_nkeep_slots < 256) {
+                    if (*p == (uint64_t)g_base + *k_keep[k].rva && g_nkeep_slots < 256) {
                         g_keep_slots[g_nkeep_slots].slot = p; g_keep_slots[g_nkeep_slots].orig = *p; ++g_nkeep_slots;
                         InterlockedExchange64((volatile LONG64 *)p, (LONG64)gate_of((const void *)k_keep[k].fn));
                         ++per[k];
@@ -746,7 +749,7 @@ static int install_hooks(int on) {
         DWORD old;
         if (!VirtualProtect(slot, 8, PAGE_READWRITE, &old)) { blog("VirtualProtect slot %d failed %lu", k, GetLastError()); return 0; }
         if (on) {
-            uint64_t want = (uint64_t)g_base + k_fn_rva[k];
+            uint64_t want = (uint64_t)g_base + *k_fn_rva[k];
             if (*slot != want) { blog("slot %s = 0x%llx, expected 0x%llx: not hooking", k_names[k], *slot, want); VirtualProtect(slot, 8, old, &old); return 0; }
             bbs_orig[k] = *slot;
             InterlockedExchange64((volatile LONG64 *)slot, (LONG64)gate_of((const void *)k_hooks[k]));
@@ -1960,6 +1963,8 @@ static int same_location(const FState *s, char *reason, size_t rlen) {
 }
 static int same_pool(const char *a, const char *b);
 static int g_l3_other_loc; static char g_l3_loc_note[300];   /* the slot's map files are not the ones open now */
+static int g_l3_other_exe;                                     /* the slot was saved with another bbport version */
+const char *core_load_note(void) { return g_l3 && g_l3_other_exe ? " (saved in another bbport version: may not work correctly)" : ""; }
 /* Cross-process checks (no game pause): same exe, same DLL build, virtualization, threads by creation
  * order and name, location (open game files). VMAs are compared by the caller. */
 static int l3_compatible(const uint8_t *b, uint32_t len, char *reason, size_t rlen) {
@@ -1967,7 +1972,8 @@ static int l3_compatible(const uint8_t *b, uint32_t len, char *reason, size_t rl
     uint64_t il = 0; const L3Info *in = (const L3Info *)layout_ext(b, len, EXT_INFO, &il);
     if (!g_l3_enabled) { _snprintf_s(reason, rlen, _TRUNCATE, "slot was saved in another game process (pid %u); cross-process loading is off (bbstate.ini cross_process_load=1)", h->pid); return 0; }
     if (!in || il != sizeof *in || !layout_ext(b, len, EXT_XREF, NULL)) { _snprintf_s(reason, rlen, _TRUNCATE, "slot from another process has no L3 data (saved by an older DLL or without early mode)"); return 0; }
-    if (strcmp(in->exe_sha, g_exe_sha)) { _snprintf_s(reason, rlen, _TRUNCATE, "slot was saved with another bb-probe.exe (sha256 %.16s...)", in->exe_sha); return 0; }
+    g_l3_other_exe = strcmp(in->exe_sha, g_exe_sha) != 0;   /* another bbport version: loaded anyway, the toast warns */
+    if (g_l3_other_exe) blog("L3: slot was saved with another bb-probe.exe (sha256 %.16s...): loading anyway", in->exe_sha);
     uint64_t apl = 0; const float *ap = (const float *)layout_ext(b, len, EXT_APPR, &apl);
     if (ap && apl == sizeof *ap && *ap < EARLY_SAVE_S && !g_early_ok) {
         _snprintf_s(reason, rlen, _TRUNCATE, "slot was saved %.1f s after the player appeared, while the area was still loading: it loads only in the game run that saved it", *ap); return 0;
@@ -3202,10 +3208,12 @@ static DWORD WINAPI worker(LPVOID arg) {
     blog("---- bbstate loaded: pid %lu, exe base %p, worker tid %lu%s%s, data folder %s", GetCurrentProcessId(), g_base, g_worker_tid,
          g_proxy ? " (pdh.dll proxy)" : "", g_early ? " (early: waiting for the game)" : "", g_dir);
     if (!g_supported) {
-        static char ini[MAX_PATH]; _snprintf_s(ini, sizeof ini, _TRUNCATE, "%s\\practice-tool.ini", g_dir);
-        blog("bb-probe.exe sha256 %s is not bbport 1.9.5 (%s): savestates and practice tools are off, the overlay only explains that", g_exe_sha, BBPROBE_195_SHA256);
-        OvConfig oc = {0, "This version of bbport is not supported yet: the practice tool works with bbport 1.9.5 only. "
-                          "The game itself runs as usual. To remove the tool, delete pdh.dll and the practice-tool folder from the game's bin folder.", g_dir, ini};
+        /* without these addresses the tool would crash the game */
+        static char ini[MAX_PATH], why[400]; _snprintf_s(ini, sizeof ini, _TRUNCATE, "%s\\practice-tool.ini", g_dir);
+        _snprintf_s(why, sizeof why, _TRUNCATE, "This version of bbport changed too much: the practice tool cannot find its parts (%s). "
+                    "The game itself runs as usual. A new version of the tool is needed.", g_rva_missing[0] ? g_rva_missing : "no symbol table");
+        blog("bb-probe.exe sha256 %s: rva.h symbols missing (%s): the overlay only explains that", g_exe_sha, g_rva_missing);
+        OvConfig oc = {0, why, g_dir, ini, NULL};
         ov_start(&oc);
         return 0;
     }
@@ -3247,7 +3255,7 @@ static DWORD WINAPI worker(LPVOID arg) {
     if (g_crash_notes) { AddVectoredExceptionHandler(1, crash_note); blog("crash notes on%s", g_crash_notes > 1 ? " (with a dump file)" : ""); }
     blog("ready: %s save, %s load, %s/%s slot; active slot %d; cmd.txt in %s", O.save.text, O.load.text, O.next.text, O.prev.text, O.active, g_dir);
     g_ev_wake = CreateEventA(NULL, FALSE, FALSE, NULL);
-    { OvConfig oc = {1, "", g_dir, O.ini}; ov_start(&oc); }
+    { OvConfig oc = {1, "", g_dir, O.ini, g_untested ? "New bbport version: some things may not work correctly" : NULL}; ov_start(&oc); }
     mem_note("start");
     int ps = 0, pl = 0, pn = 0, pp = 0;
     for (unsigned tick = 0;; ++tick) {
@@ -3344,10 +3352,17 @@ BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
         open_log();
         g_base = (uint8_t *)GetModuleHandleA(NULL);
         double th = now_ms();
-        g_supported = sha256_file(exe, g_exe_sha) && !strcmp(g_exe_sha, BBPROBE_195_SHA256);
+        static const char *const tested[] = {BBPROBE_TESTED_SHA256};
+        if (!sha256_file(exe, g_exe_sha)) strcpy_s(g_exe_sha, sizeof g_exe_sha, "unknown");
+        g_untested = 1;
+        for (int i = 0; i < (int)(sizeof tested / sizeof *tested); ++i) if (!strcmp(g_exe_sha, tested[i])) g_untested = 0;
+        double tr = now_ms();
+        g_supported = rva_resolve(exe, blog, g_rva_missing, sizeof g_rva_missing) == 0;
         { char t[4] = ""; if (GetEnvironmentVariableA("BBSTATE_TEST_UNSUPPORTED", t, sizeof t) && t[0] == '1') g_supported = 0; }   /* test of the refusal path */
-        blog("==== %s loaded into %s (pid %lu): %s, sha256 checked in %.0f ms; data folder %s", mn, en, GetCurrentProcessId(),
-             g_supported ? "bbport 1.9.5" : "UNSUPPORTED exe", now_ms() - th, g_dir);
+        { char t[4] = ""; if (GetEnvironmentVariableA("BBSTATE_TEST_UNTESTED", t, sizeof t) && t[0] == '1') g_untested = 1; }       /* test of the note */
+        blog("==== %s loaded into %s (pid %lu): sha256 %s (%s), checked in %.0f ms; symbols %s in %.0f ms; data folder %s", mn, en, GetCurrentProcessId(),
+             g_exe_sha, g_untested ? "bbport version not tested with the tool" : "tested bbport version", tr - th,
+             g_supported ? "all found" : "MISSING", now_ms() - tr, g_dir);
         ov_hook_vulkan(h, blog);                       /* any version: the overlay can at least say why it is off */
         if (g_supported) {
             early_attach();

@@ -6,8 +6,8 @@
 104 RCDATA "../third_party/fonts/CormorantGaramond-Italic.ttf"
 
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION 0,1,2,0
-PRODUCTVERSION 0,1,2,0
+FILEVERSION 0,2,0,0
+PRODUCTVERSION 0,2,0,0
 FILETYPE VFT_DLL
 BEGIN
   BLOCK "StringFileInfo"
@@ -16,8 +16,8 @@ BEGIN
     BEGIN
       VALUE "FileDescription", "Practice Tool for Bloodborne (bbport 1.9.5)"
       VALUE "ProductName", "Practice Tool"
-      VALUE "ProductVersion", "0.1.2"
-      VALUE "FileVersion", "0.1.2"
+      VALUE "ProductVersion", "0.2.0"
+      VALUE "FileVersion", "0.2.0"
       VALUE "CompanyName", "billymoore"
       VALUE "LegalCopyright", "billymoore"
     END

@@ -1,4 +1,4 @@
-PRACTICE TOOL for Bloodborne (bbport 1.9.5)
+PRACTICE TOOL for Bloodborne (bbport 1.9.5 and newer)
 by billymoore
 
 Savestates, cheats and teleport points, in a small menu inside the game.
@@ -28,8 +28,8 @@ Also delete the practice-tool folder if you no longer need your saved states.
 
 
 GOOD TO KNOW
-- Works with bbport 1.9.5 only. With another version the game starts as usual,
-  and the menu only says that the tool is off.
+- Works with new bbport versions too. If the menu says "New bbport version",
+  that version was not tested yet: everything stays on, but something may break.
 - Saved states are kept in bin\practice-tool\slots and can take a few GB.
 - Play offline.
 

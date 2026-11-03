@@ -66,7 +66,7 @@ void api_end(int op, int slot, int ok, const char *reason, double pause_ms) {
     ReleaseSRWLockExclusive(&g_lock);
     if (!ok) api_event(BBS_EV_REFUSED, slot, op, "%s refused: %s", what[op & 3], reason ? reason : "");
     else if (op == BBS_OP_SAVE) api_event(BBS_EV_SAVED, slot, op, "Saved to slot %d", slot);
-    else if (op == BBS_OP_LOAD) api_event(BBS_EV_LOADED, slot, op, "Slot %d loaded", slot);
+    else if (op == BBS_OP_LOAD) api_event(BBS_EV_LOADED, slot, op, "Slot %d loaded%s", slot, core_load_note());
     else api_event(BBS_EV_DELETED, slot, op, "Slot %d deleted", slot);
 }
 

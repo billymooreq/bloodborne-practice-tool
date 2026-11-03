@@ -11,10 +11,11 @@ typedef void (*OvLogFn)(const char *fmt, ...);
 void ov_hook_vulkan(void *self_module, OvLogFn log);   /* DllMain: patches vulkan-1.dll's exports */
 
 typedef struct {
-    int supported;           /* exe is bbport 1.9.5 and the savestate engine runs */
+    int supported;           /* the tool found its parts in bb-probe.exe and the savestate engine runs */
     const char *why;         /* shown when not supported */
     const char *dir;         /* practice-tool folder (slots, teleport points, logs) */
     const char *ini;         /* settings file */
+    const char *note;        /* NULL, or a lasting warning in the header (a bbport version not tested with the tool) */
 } OvConfig;
 void ov_start(const OvConfig *c);                      /* starts the overlay thread (hotkeys, pause, data) */
 int ov_thumbnail(uint8_t *bgr, int timeout_ms);        /* META_THUMB_W x H bottom-up BGR (meta.h) of the next presented frame; 1 ok */
