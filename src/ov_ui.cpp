@@ -46,7 +46,7 @@ static const char *const k_key_def[K_COUNT] = {"Home", "", "", "", "", "none", "
 static HotKey g_keys[K_COUNT];
 static char g_ini[MAX_PATH], g_dir[MAX_PATH], g_why[256], g_points_ini[MAX_PATH];
 static int g_supported;
-static struct { int notify, pause, opacity, size; float offx, offy; } S = {1, 1, 60, 100, 0, 0};   /* offx/offy: panel offset from the centre, in 900p units */
+static struct { int notify, pause, opacity, size; float offx, offy; } S = {1, 1, 85, 100, 0, 0};   /* offx/offy: panel offset from the centre, in 900p units */
 static const float PH = 730, CT = 144, CB = 706;   /* panel height, content top and bottom (mockup units) */
 static int g_apt = -1;   /* active teleport point (the position hotkeys use it) */
 static volatile LONG g_open, g_typing;
@@ -144,7 +144,7 @@ static void load_settings(void) {
     S.offx = (float)(int)GetPrivateProfileIntA("overlay", "pos_x", 0, g_ini); S.offy = (float)(int)GetPrivateProfileIntA("overlay", "pos_y", 0, g_ini);
     S.notify = GetPrivateProfileIntA("overlay", "notifications", 1, g_ini);
     S.pause = GetPrivateProfileIntA("overlay", "pause_game", 1, g_ini);
-    S.opacity = GetPrivateProfileIntA("overlay", "opacity", 60, g_ini);
+    S.opacity = GetPrivateProfileIntA("overlay", "opacity", 85, g_ini);
     if (S.opacity < 50) S.opacity = 50; if (S.opacity > 100) S.opacity = 100;
 }
 static void set_key(int k, const char *text) {

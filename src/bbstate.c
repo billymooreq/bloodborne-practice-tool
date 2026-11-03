@@ -2923,7 +2923,7 @@ static const char *k_default_ini =
     "; The port uses F7 (mouse), F8 (reload input.ini), Insert (its menu).\r\n"
     "save=F5\r\nload=F9\r\nnext_slot=none\r\nprev_slot=none\r\n"
     "[overlay]\r\n"
-    "toggle_key=Home\r\nnotifications=1\r\npause_game=1\r\nopacity=60\r\nsize=100\r\n"
+    "toggle_key=Home\r\nnotifications=1\r\npause_game=1\r\nopacity=85\r\nsize=100\r\n"
     "[practice]\r\n"
     "immortal_key=none\r\nstamina_key=none\r\nconsumables_key=none\r\nstealth_key=none\r\nsilent_key=none\r\nsave_position_key=none\r\nload_position_key=none\r\n"
     "[slots]\r\n"
