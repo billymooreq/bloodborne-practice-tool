@@ -1130,13 +1130,16 @@ static void close_threads(void) {
     for (int i = 0; i < g_nthr; ++i) if (g_thr[i].h) CloseHandle(g_thr[i].h);
     g_nthr = 0;
 }
-/* Live GuestThreads in creation order (the runtime pushes new ones at the head of `threads`). */
+/* Live GuestThreads in creation order (the runtime pushes new ones at the head of `threads`). The port's
+ * own "bb:..." entries (4 x "bb:hle" stay after a movie, e.g. the new game intro) carry no guest TCB, so a
+ * save never holds them; counting them here refused every load in such a run ("area still loading"). */
 static int live_guest_threads(uint64_t *out, int cap) {
     uint64_t all[2048]; int n = 0, k = 0;
     __try {
         for (uint8_t *p = *(uint8_t **)(g_base + RVA_THREADS); p && n < 2048; p = *(uint8_t **)(p + GT_NEXT)) all[n++] = (uint64_t)p;
     } __except (EXCEPTION_EXECUTE_HANDLER) { return -1; }
-    for (int i = n - 1; i >= 0 && k < cap; --i) if (!*(int *)(all[i] + GT_FINISHED)) out[k++] = all[i];
+    for (int i = n - 1; i >= 0 && k < cap; --i)
+        if (!*(int *)(all[i] + GT_FINISHED) && strncmp((const char *)(all[i] + GT_NAME), "bb:", 3)) out[k++] = all[i];
     return k;
 }
 /* Finds the OS threads that carry a guest TCB in their TEB TLS slot (runtime_thread.c). Runs before
@@ -2842,11 +2845,28 @@ static void dump_at(const char *nm, uint64_t a) {
     }
     blog("CRASH   %s=0x%llx:%s", nm, a, b);
 }
+/* Small minidump (stacks, registers, memory they point to) next to bbstate.log: logs\crash_<time>.dmp. */
+typedef BOOL (WINAPI *MiniDumpWriteDumpFn)(HANDLE, DWORD, HANDLE, int, void *, void *, void *);
+static void write_minidump(EXCEPTION_POINTERS *ep) {
+    MiniDumpWriteDumpFn fn = (MiniDumpWriteDumpFn)GetProcAddress(LoadLibraryA("dbghelp.dll"), "MiniDumpWriteDump");
+    if (!fn) { blog("CRASH: no dbghelp.dll, no dump"); return; }
+    SYSTEMTIME st; GetLocalTime(&st);
+    char p[MAX_PATH]; _snprintf_s(p, sizeof p, _TRUNCATE, "%s\\logs\\crash_%04d%02d%02d_%02d%02d%02d.dmp", g_dir, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+    HANDLE f = CreateFileA(p, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
+    if (f == INVALID_HANDLE_VALUE) { blog("CRASH: cannot create %s", p); return; }
+    struct { DWORD tid; EXCEPTION_POINTERS *ep; BOOL client; } ei = {GetCurrentThreadId(), ep, FALSE};
+    /* MiniDumpWithIndirectlyReferencedMemory 0x40 | MiniDumpWithThreadInfo 0x1000 | MiniDumpWithUnloadedModules 0x20 */
+    BOOL ok = fn(GetCurrentProcess(), GetCurrentProcessId(), f, 0x40 | 0x1000 | 0x20, &ei, NULL, NULL);
+    CloseHandle(f);
+    blog("CRASH: dump %s %s", p, ok ? "written" : "failed");
+}
 static LONG CALLBACK crash_note(EXCEPTION_POINTERS *ep) {
     EXCEPTION_RECORD *r = ep->ExceptionRecord; CONTEXT *c = ep->ContextRecord;
-    uint64_t fa = r->NumberParameters >= 2 ? (uint64_t)r->ExceptionInformation[1] : 0;   /* near 0 or not a user address: never the port's page tracking */
-    if (r->ExceptionCode != EXCEPTION_ACCESS_VIOLATION || r->NumberParameters < 2 || (fa >= 0x10000 && fa < 0x800000000000ull)) return EXCEPTION_CONTINUE_SEARCH;
+    /* the port's page tracking faults only inside guest memory (backing view 0x680000000.., image, heaps) */
+    uint64_t fa = r->NumberParameters >= 2 ? (uint64_t)r->ExceptionInformation[1] : 0;
+    if (r->ExceptionCode != EXCEPTION_ACCESS_VIOLATION || r->NumberParameters < 2 || (fa >= 0x680000000ull && fa < 0x800000000000ull)) return EXCEPTION_CONTINUE_SEARCH;
     if (c->Rip < 0x800000000ull || c->Rip >= 0x805400000ull || InterlockedExchange(&g_crash_noted, 1)) return EXCEPTION_CONTINUE_SEARCH;
+    if (g_crash_notes > 1) write_minidump(ep);
     char d[96]; describe(c->Rip, d, sizeof d);
     blog("CRASH: %s reads 0x%llx (thread %lu); last load: %s", d, (uint64_t)r->ExceptionInformation[1], GetCurrentThreadId(), g_last_load_note);
     const char *nm[] = {"rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"};
@@ -3221,8 +3241,10 @@ static DWORD WINAPI worker(LPVOID arg) {
     refresh_modules();
     if (!install_hooks(1)) { blog("hooks not installed: doing nothing"); store_shutdown(); return 0; }
     install_keep(1);
+    /* ini [options] crash_dump=1: register notes in bbstate.log + logs\crash_*.dmp (env BBSTATE_CRASH_NOTES=1: notes only) */
     { char cn[8] = ""; GetEnvironmentVariableA("BBSTATE_CRASH_NOTES", cn, sizeof cn); g_crash_notes = cn[0] == '1'; }
-    if (g_crash_notes) AddVectoredExceptionHandler(1, crash_note);
+    if (GetPrivateProfileIntA("options", "crash_dump", 0, O.ini)) g_crash_notes = 2;
+    if (g_crash_notes) { AddVectoredExceptionHandler(1, crash_note); blog("crash notes on%s", g_crash_notes > 1 ? " (with a dump file)" : ""); }
     blog("ready: %s save, %s load, %s/%s slot; active slot %d; cmd.txt in %s", O.save.text, O.load.text, O.next.text, O.prev.text, O.active, g_dir);
     g_ev_wake = CreateEventA(NULL, FALSE, FALSE, NULL);
     { OvConfig oc = {1, "", g_dir, O.ini}; ov_start(&oc); }

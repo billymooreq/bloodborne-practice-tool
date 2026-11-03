@@ -25,7 +25,7 @@ extern "C" {
 #pragma comment(lib, "shell32.lib")
 
 /* ---- one place for the version and the links (About tab) ---- */
-#define OV_VERSION "0.1.0"
+#define OV_VERSION "0.1.1"
 static const char *const k_link_url[3] = {"https://github.com/billymooreq", "https://www.speedrun.com/users/billymoore", "https://www.twitch.tv/biilymoore"};
 static const char *const k_link_label[3] = {"GITHUB", "SPEEDRUN.COM", "TWITCH"};
 

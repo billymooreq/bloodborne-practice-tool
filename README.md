@@ -57,6 +57,13 @@ Only bbport 1.9.5 is supported for now. The game will still start, but the tool 
 **Where are my saved states, and how much space do they take?**
 In `bin\practice-tool\slots`. The first state takes about 2 GB; later ones add much less, because identical parts are stored only once. The **Settings** tab shows the folder and how much space is used. The tool always leaves at least 2 GB free on the drive.
 
+**The game crashed. How do I help find the cause?**
+Open `bin\practice-tool\practice-tool.ini`, find the `[options]` section and add the line `crash_dump=1`. Play as usual. After the next crash, send the files from `bin\practice-tool\logs`: `bbstate.log`, the newest `game_*.log` and the `crash_*.dmp` file.
+
+## Known issues
+
+- **The Hunter's Dream is completely black.** This can happen if you loaded a state and then travelled to the Hunter's Dream later. Fix: quit to the main menu and choose **Continue**. If it is still black, restart the game.
+
 ## Credits
 
 - Created by **billymoore** · [GitHub](https://github.com/billymooreq) · [speedrun.com](https://www.speedrun.com/users/billymoore) · [Twitch](https://www.twitch.tv/biilymoore)
