@@ -2,18 +2,9 @@
 
 A practice tool with real savestates for the PC port of Bloodborne, [bbport](https://github.com/Supermedo/bloodborne_pc).
 
-## What it does
+<p align="center"><img src="docs/screenshots/1.png" width="100%"></p>
 
-- **Savestates of the whole world** in 10 slots: enemies, bosses, items and your hunter come back exactly as they were.
-- **They keep working** after you die, after you restart the game and even after you restart your PC.
-- **A menu inside the game** (press Home), made to look like Bloodborne.
-- **Practice options:** immortal, endless stamina, endless consumables, stealth, silent steps, set Blood Echoes and Insight, refill Blood Vials and Quicksilver Bullets.
-- **Teleport** to positions you saved.
-- **Your own hotkeys** for every action.
-
-<h2 align="center">
-  <a href="https://github.com/billymooreq/bloodborne-practice-tool/releases/latest">⬇ Download the latest version</a>
-</h2>
+<p align="center"><img src="docs/screenshots/2.png" width="100%"></p>
 
 ## Install
 
@@ -24,9 +15,14 @@ A practice tool with real savestates for the PC port of Bloodborne, [bbport](htt
 
 **You need:** bbport **1.9.5** (Bloodborne CUSA03173, version 1.09), Windows 10 or 11. Play **offline** only.
 
-<p align="center"><img src="docs/screenshots/1.png" width="100%"></p>
+## What it does
 
-<p align="center"><img src="docs/screenshots/2.png" width="100%"></p>
+- **Savestates of the whole world** in 10 slots: enemies, bosses, items and your hunter come back exactly as they were.
+- **They keep working** after you die, after you restart the game and even after you restart your PC.
+- **A menu inside the game** (press Home), made to look like Bloodborne.
+- **Practice options:** immortal, endless stamina, endless consumables, stealth, silent steps, set Blood Echoes and Insight, refill Blood Vials and Quicksilver Bullets.
+- **Teleport** to positions you saved.
+- **Your own hotkeys** for every action.
 
 ## Keys
 
