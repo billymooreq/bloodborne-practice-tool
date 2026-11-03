@@ -25,7 +25,7 @@ extern "C" {
 #pragma comment(lib, "shell32.lib")
 
 /* ---- one place for the version and the links (About tab) ---- */
-#define OV_VERSION "0.1.1"
+#define OV_VERSION "0.1.2"
 static const char *const k_link_url[3] = {"https://github.com/billymooreq", "https://www.speedrun.com/users/billymoore", "https://www.twitch.tv/biilymoore"};
 static const char *const k_link_label[3] = {"GITHUB", "SPEEDRUN.COM", "TWITCH"};
 
@@ -461,9 +461,14 @@ static void draw_frame(float W, float H) {
 }
 
 /* ---- SAVESTATES ---- */
-static void thumb_draw(int slot, ImVec2 a, ImVec2 b) {
-    int w, h; ImTextureID t = ovtex_id(OVTEX_SLOT0 + slot, &w, &h);
-    if (t) DL()->AddImage(ImTextureRef(t), a, b);
+static void thumb_draw(int id, ImVec2 a, ImVec2 b) {
+    int w, h; ImTextureID t = ovtex_id(id, &w, &h);
+    if (t) {   /* fill the box without stretching: crop the 16:9 picture to the box's shape */
+        float bw = b.x - a.x, bh = b.y - a.y, ia = h > 0 ? (float)w / h : 16.f / 9, ba = bh > 0 ? bw / bh : ia;
+        ImVec2 u0(0, 0), u1(1, 1);
+        if (ba > ia) { float k = ia / ba; u0.y = (1 - k) / 2; u1.y = 1 - u0.y; } else { float k = ba / ia; u0.x = (1 - k) / 2; u1.x = 1 - u0.x; }
+        DL()->AddImage(ImTextureRef(t), a, b, u0, u1);
+    }
     else DL()->AddRectFilledMultiColor(a, b, IM_COL32(0x22, 0x34, 0x4a, 255), IM_COL32(0x22, 0x34, 0x4a, 255), IM_COL32(0x1d, 0x24, 0x30, 255), IM_COL32(0x1d, 0x24, 0x30, 255));
 }
 static void dashed_rect(ImVec2 a, ImVec2 b, ImU32 c) {
@@ -488,7 +493,7 @@ static void tab_savestates(void) {
         float cy = ry + 21;
         textc(P(52, 0).x, P(0, cy).y, F_FELL, 14, C_GOLD, roman(i + 1));
         ImVec2 ta = P(96, cy - 15), tb = P(152, cy + 15);
-        if (slot_used(i)) thumb_draw(i, ta, tb); else dashed_rect(ta, tb, hair(0.3f));
+        if (slot_used(i)) thumb_draw(OVTEX_MINI0 + i, ta, tb); else dashed_rect(ta, tb, hair(0.3f));
         float nx = 166, right = 468;
         if (V.st.active_slot == i + 1) {   /* the slot the save / load keys use */
             float pw = text_w(F_CGM, 12, "ACTIVE", 0.12f) / g_s + 16, ph = lh(F_CGM, 12) / g_s + 4;
@@ -508,7 +513,7 @@ static void tab_savestates(void) {
     int s = g_sel; const BbsSlotInfo &si = V.slot[s]; bool used_ = slot_used(s);
     float x0 = 516, x1 = 1080, y = y0;
     ImVec2 a = P(x0, y), b = P(x1, y + 250);
-    if (used_ && ovtex_id(OVTEX_SLOT0 + s, NULL, NULL)) thumb_draw(s, a, b);
+    if (used_ && ovtex_id(OVTEX_SLOT0 + s, NULL, NULL)) thumb_draw(OVTEX_SLOT0 + s, a, b);
     else rect(a, b, used_ ? IM_COL32(0x15, 0x22, 0x34, 255) : RGBA(0, 0, 0, 0.3f));
     DL()->AddRectFilledMultiColor(ImVec2(a.x, b.y - 46 * g_s), b, IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 0), IM_COL32(0, 0, 0, 190), IM_COL32(0, 0, 0, 190));
     rect(a, b, 0, hair(0.25f));
@@ -1071,18 +1076,30 @@ static uint64_t file_stamp(const char *p) {
     if (!p[0] || !GetFileAttributesExA(p, GetFileExInfoStandard, &a)) return 0;
     return (((uint64_t)a.ftLastWriteTime.dwHighDateTime << 32) | a.ftLastWriteTime.dwLowDateTime) ^ a.nFileSizeLow;
 }
+static void clear_thumb(int slot) { ovtex_set(OVTEX_SLOT0 + slot, NULL, 0, 0); ovtex_set(OVTEX_MINI0 + slot, NULL, 0, 0); }
 static void load_thumb(int slot, const char *path) {
     HANDLE f = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
-    if (f == INVALID_HANDLE_VALUE) { ovtex_set(OVTEX_SLOT0 + slot, NULL, 0, 0); return; }
+    if (f == INVALID_HANDLE_VALUE) { clear_thumb(slot); return; }
     static uint8_t buf[54 + META_THUMB_BYTES], rgba[META_THUMB_W * META_THUMB_H * 4];
     DWORD got = 0; ReadFile(f, buf, sizeof buf, &got, NULL); CloseHandle(f);
-    if (got != sizeof buf) { ovtex_set(OVTEX_SLOT0 + slot, NULL, 0, 0); return; }
-    for (int y = 0; y < META_THUMB_H; ++y) {
-        const uint8_t *s = buf + 54 + (size_t)(META_THUMB_H - 1 - y) * META_THUMB_W * 3;
-        uint8_t *o = rgba + (size_t)y * META_THUMB_W * 4;
-        for (int x = 0; x < META_THUMB_W; ++x) { o[4 * x] = s[3 * x + 2]; o[4 * x + 1] = s[3 * x + 1]; o[4 * x + 2] = s[3 * x]; o[4 * x + 3] = 255; }
+    /* 24-bit bottom-up BMP of any size up to META_THUMB_W x H (v0.1.0 slots: 256x144) */
+    int32_t w = got >= 54 ? *(int32_t *)(buf + 18) : 0, h = got >= 54 ? *(int32_t *)(buf + 22) : 0;
+    size_t stride = ((size_t)w * 3 + 3) & ~(size_t)3;
+    if (w <= 0 || h <= 0 || w > META_THUMB_W || h > META_THUMB_H || *(uint16_t *)(buf + 28) != 24 || got < 54 + stride * h) { clear_thumb(slot); return; }
+    for (int y = 0; y < h; ++y) {
+        const uint8_t *s = buf + 54 + (size_t)(h - 1 - y) * stride;
+        uint8_t *o = rgba + (size_t)y * w * 4;
+        for (int x = 0; x < w; ++x) { o[4 * x] = s[3 * x + 2]; o[4 * x + 1] = s[3 * x + 1]; o[4 * x + 2] = s[3 * x]; o[4 * x + 3] = 255; }
     }
-    ovtex_set(OVTEX_SLOT0 + slot, rgba, META_THUMB_W, META_THUMB_H);
+    ovtex_set(OVTEX_SLOT0 + slot, rgba, w, h);
+    static uint8_t mini[(META_THUMB_W / 2) * (META_THUMB_H / 2) * 4];   /* box average to about 96 px wide */
+    int k = w / 96 > 1 ? w / 96 : 1, mw = w / k, mh = h / k;
+    for (int y = 0; y < mh; ++y) for (int x = 0; x < mw; ++x) for (int c = 0; c < 4; ++c) {
+        int sum = 0;
+        for (int j = 0; j < k; ++j) for (int i = 0; i < k; ++i) sum += rgba[((size_t)(y * k + j) * w + x * k + i) * 4 + c];
+        mini[((size_t)y * mw + x) * 4 + c] = (uint8_t)(sum / (k * k));
+    }
+    ovtex_set(OVTEX_MINI0 + slot, mini, mw, mh);
 }
 static void refresh(int full) {
     static Model m;
@@ -1092,7 +1109,7 @@ static void refresh(int full) {
         for (int i = 0; i < PR_COUNT; ++i) m.flags[i] = prac_flag(i);
         for (int i = 0; i < BBS_SLOTS; ++i) {
             uint64_t st = m.slot[i].used ? file_stamp(m.slot[i].thumb) : 0;
-            if (st != m.thumb_stamp[i]) { m.thumb_stamp[i] = st; if (st) load_thumb(i, m.slot[i].thumb); else ovtex_set(OVTEX_SLOT0 + i, NULL, 0, 0); }
+            if (st != m.thumb_stamp[i]) { m.thumb_stamp[i] = st; if (st) load_thumb(i, m.slot[i].thumb); else clear_thumb(i); }
         }
         core_slots_dir(m.slots_dir, sizeof m.slots_dir);
         if (full) m.used_bytes = dir_size(m.slots_dir, 0);

@@ -7,7 +7,7 @@
  *
  * vkQueuePresentKHR (the port calls it with its Scheduler::submit_mutex held, so our queue submits are safe):
  *   - nothing to draw and no thumbnail wanted: straight to the driver (the closed overlay costs a lookup);
- *   - thumbnail: the swapchain image is blitted to 256x144 and copied to a host buffer (own submit + fence);
+ *   - thumbnail: the swapchain image is blitted to 2x the thumbnail size, copied to a host buffer and averaged 2x2 there (own submit + fence);
  *   - overlay: one render pass (load, present layout in and out) with ImGui's draw data; our submit waits on
  *     the port's semaphores and the present waits on ours.
  * Swapchains get COLOR_ATTACHMENT and TRANSFER_SRC added to their usage. Input: the game window's WndProc
@@ -291,12 +291,15 @@ static void tex_uploads(Dev *d, VkCommandBuffer cb, VkFence frame_fence, int srg
 }
 
 /* ---- thumbnail ---- */
+/* one linear blit from 1080p+ straight to the thumbnail skips pixels (blocky); 2x then a 2x2 average does not */
+#define TW (META_THUMB_W * 2)
+#define TH (META_THUMB_H * 2)
 static int thumb_init(Dev *d, int srgb) {
     VkFormat fmt = srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
     if (G.timg && G.tfmt == fmt) return 1;
     if (G.timg) { d->QueueWaitIdle(G.queue); d->DestroyImage(d->dev, G.timg, NULL); d->FreeMemory(d->dev, G.tmem, NULL); G.timg = 0; G.tmem = 0; }
     VkImageCreateInfo ii = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-    ii.imageType = VK_IMAGE_TYPE_2D; ii.format = fmt; ii.extent = {META_THUMB_W, META_THUMB_H, 1}; ii.mipLevels = 1; ii.arrayLayers = 1;
+    ii.imageType = VK_IMAGE_TYPE_2D; ii.format = fmt; ii.extent = {TW, TH, 1}; ii.mipLevels = 1; ii.arrayLayers = 1;
     ii.samples = VK_SAMPLE_COUNT_1_BIT; ii.tiling = VK_IMAGE_TILING_OPTIMAL; ii.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     if (d->CreateImage(d->dev, &ii, NULL, &G.timg) != VK_SUCCESS) { G.timg = 0; return 0; }
     VkMemoryRequirements mr; d->GetImageMemoryRequirements(d->dev, G.timg, &mr);
@@ -305,7 +308,7 @@ static int thumb_init(Dev *d, int srgb) {
     d->BindImageMemory(d->dev, G.timg, G.tmem, 0);
     G.tfmt = fmt;
     if (!G.tbuf) {
-        VkBufferCreateInfo bi = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO}; bi.size = META_THUMB_W * META_THUMB_H * 4; bi.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        VkBufferCreateInfo bi = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO}; bi.size = TW * TH * 4; bi.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         if (d->CreateBuffer(d->dev, &bi, NULL, &G.tbuf) != VK_SUCCESS) return 0;
         d->GetBufferMemoryRequirements(d->dev, G.tbuf, &mr);
         ma.allocationSize = mr.size; ma.memoryTypeIndex = mem_type(d, mr.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -340,11 +343,11 @@ static int thumb_submit(Dev *d, Swap *s, uint32_t i, const VkPresentInfoKHR *pi)
     VkImageBlit r = {};
     r.srcSubresource.aspectMask = r.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; r.srcSubresource.layerCount = r.dstSubresource.layerCount = 1;
     r.srcOffsets[0] = {(W - cw) / 2, (H - ch) / 2, 0}; r.srcOffsets[1] = {(W - cw) / 2 + cw, (H - ch) / 2 + ch, 1};
-    r.dstOffsets[1] = {META_THUMB_W, META_THUMB_H, 1};
+    r.dstOffsets[1] = {TW, TH, 1};
     d->CmdBlitImage(cb, s->img[i], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, G.timg, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &r, VK_FILTER_LINEAR);
     barrier_img(d, cb, G.timg, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
                 VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-    VkBufferImageCopy c = {}; c.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; c.imageSubresource.layerCount = 1; c.imageExtent = {META_THUMB_W, META_THUMB_H, 1};
+    VkBufferImageCopy c = {}; c.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; c.imageSubresource.layerCount = 1; c.imageExtent = {TW, TH, 1};
     d->CmdCopyImageToBuffer(cb, G.timg, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, G.tbuf, 1, &c);
     barrier_img(d, cb, s->img[i], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_TRANSFER_READ_BIT, 0,
                 VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
@@ -369,10 +372,11 @@ int ov_thumbnail(uint8_t *bgr, int timeout_ms) {
     if (d->WaitForFences(d->dev, 1, &G.tfence, VK_TRUE, 500000000ull) != VK_SUCCESS) return 0;
     const uint8_t *src = (const uint8_t *)G.tmap;
     long sum = 0;
-    for (int y = 0; y < META_THUMB_H; ++y) {   /* RGBA top-down -> BGR bottom-up */
-        const uint8_t *s = src + (size_t)y * META_THUMB_W * 4;
+    for (int y = 0; y < META_THUMB_H; ++y) {   /* RGBA top-down 2x -> BGR bottom-up, 2x2 average */
+        const uint8_t *s = src + (size_t)(2 * y) * TW * 4, *s2 = s + TW * 4;
         uint8_t *o = bgr + (size_t)(META_THUMB_H - 1 - y) * META_THUMB_W * 3;
-        for (int x = 0; x < META_THUMB_W; ++x) { o[3 * x] = s[4 * x + 2]; o[3 * x + 1] = s[4 * x + 1]; o[3 * x + 2] = s[4 * x]; sum += s[4 * x] + s[4 * x + 1] + s[4 * x + 2]; }
+        for (int x = 0; x < META_THUMB_W; ++x, s += 8, s2 += 8)
+            for (int c = 0; c < 3; ++c) { int v = (s[2 - c] + s[6 - c] + s2[2 - c] + s2[6 - c] + 2) >> 2; o[3 * x + c] = (uint8_t)v; sum += v; }
     }
     return sum > 0;
 }

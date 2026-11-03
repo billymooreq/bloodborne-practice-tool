@@ -12,7 +12,7 @@ void ui_on_key(int vk);                 /* a key went down while the panel is op
 extern OvLogFn ov_log;
 
 /* ov_vk.cpp: thumbnails and pictures as textures (uploaded by the present hook) */
-enum { OVTEX_SLOT0 = 0, OVTEX_COUNT = 12 };
+enum { OVTEX_SLOT0 = 0, OVTEX_MINI0 = 12, OVTEX_COUNT = 24 };   /* MINI: small copy for the slot list (no mipmaps) */
 void ovtex_set(int id, const uint8_t *rgba, int w, int h);   /* copied; uploaded with the next drawn frame; NULL removes */
 ImTextureID ovtex_id(int id, int *w, int *h);                 /* 0 until uploaded */
 void ov_window_size(int *w, int *h);    /* swapchain extent of the last drawn frame */

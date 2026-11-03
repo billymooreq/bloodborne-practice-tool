@@ -17,7 +17,7 @@ typedef struct {
     const char *ini;         /* settings file */
 } OvConfig;
 void ov_start(const OvConfig *c);                      /* starts the overlay thread (hotkeys, pause, data) */
-int ov_thumbnail(uint8_t *bgr, int timeout_ms);        /* 256x144 bottom-up BGR (meta.h) of the next presented frame; 1 ok */
+int ov_thumbnail(uint8_t *bgr, int timeout_ms);        /* META_THUMB_W x H bottom-up BGR (meta.h) of the next presented frame; 1 ok */
 int ov_keys_blocked(void);                             /* typing in the overlay or waiting for a new hotkey */
 int ov_is_open(void);
 int ov_screenshot(const char *path);                   /* next drawn frame with the overlay -> BMP (command "ovshot FILE") */

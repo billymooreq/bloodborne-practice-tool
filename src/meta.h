@@ -3,8 +3,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define META_THUMB_W 256
-#define META_THUMB_H 144
+#define META_THUMB_W 768   /* v0.1.0 slots have 256x144: readers take the size from the BMP header */
+#define META_THUMB_H 432
 #define META_THUMB_BYTES (META_THUMB_W * META_THUMB_H * 3)   /* 24-bit rows, bottom-up, width*3 is a multiple of 4 */
 typedef struct {
     char location[64], map[16], created[20];
