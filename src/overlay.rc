@@ -1,0 +1,29 @@
+// Fonts of the overlay (SIL OFL 1.1, licences in third_party\fonts and next to the release) and version info.
+#include <winver.h>
+101 RCDATA "../third_party/fonts/IMFellEnglishSC-Regular.ttf"
+102 RCDATA "../third_party/fonts/CormorantGaramond-Regular.ttf"
+103 RCDATA "../third_party/fonts/CormorantGaramond-Medium.ttf"
+104 RCDATA "../third_party/fonts/CormorantGaramond-Italic.ttf"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 0,1,0,0
+PRODUCTVERSION 0,1,0,0
+FILETYPE VFT_DLL
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904b0"
+    BEGIN
+      VALUE "FileDescription", "Practice Tool for Bloodborne (bbport 1.9.5)"
+      VALUE "ProductName", "Practice Tool"
+      VALUE "ProductVersion", "0.1.0"
+      VALUE "FileVersion", "0.1.0"
+      VALUE "CompanyName", "billymoore"
+      VALUE "LegalCopyright", "billymoore"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

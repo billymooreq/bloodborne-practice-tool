@@ -1,0 +1,18 @@
+# build output
+src/obj/
+dist/
+*.dll
+*.exp
+*.lib
+*.pdb
+*.ilk
+*.map
+*.obj
+*.res
+
+# generated locally from your own copy of bb-probe.exe (tools/coff_symbols.py); rva.h is checked in
+tools/bbprobe_195_symbols.txt
+
+# python
+__pycache__/
+*.pyc
